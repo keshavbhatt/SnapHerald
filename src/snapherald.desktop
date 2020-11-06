@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+GenericName=New Snaps notifier
+Name[en_US]=SnapHerald
+Comment=New Snaps notifier
+Name=SnapHerald
+Type=Application
+Icon=${SNAP}/meta/gui/icon.png
+Keywords=Snap;Notifier;Apps;Store;Snap
+Exec=snapherald %F
+Categories=Utility;Qt;
+Terminal=false
+StartupNotify=false
