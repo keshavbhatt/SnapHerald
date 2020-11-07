@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include <QSystemTrayIcon>
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -21,17 +22,14 @@ MainWindow::MainWindow(QWidget *parent) :
     }
     ui->mainToolBar->setMovable(false);
     ui->mainToolBar->addAction(QIcon(":/icons/information-line.png"),tr("About"),this,SLOT(aboutApp()));
+    show_SysTrayIcon();
     init();
 }
 
 void MainWindow::init()
 {
     _cache_path   = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
-    api_end_point = "https://snapstats.org/graphql";
-    fields        = "confinement,categories,description,"
-                     "media,publisher,summary,title,type,"
-                     "version,contact,website,download,"
-                     "channel";
+    api_end_point = "https://snapstats.org/";
 
     m_netwManager = new QNetworkAccessManager(this);
     QNetworkDiskCache* diskCache = new QNetworkDiskCache(this);
@@ -54,7 +52,58 @@ void MainWindow::init()
     });
 
     //load home
-    get(api_end_point);
+    get(api_end_point+"graphql");
+}
+
+void MainWindow::show_SysTrayIcon(){
+
+      QAction *minimizeAction = new QAction(QObject::tr("&Hide"), this);
+      this->connect(minimizeAction, SIGNAL(triggered()), this, SLOT(hide()));
+
+      QAction *restoreAction = new QAction(QObject::tr("&Restore"), this);
+      this->connect(restoreAction, SIGNAL(triggered()), this, SLOT(showNormal()));
+
+      QAction *quitAction = new QAction(QObject::tr("&Quit"), this);
+      this->connect(quitAction, SIGNAL(triggered()), this, SLOT(close()));
+
+      QMenu *trayIconMenu = new QMenu(this);
+      trayIconMenu->addAction(minimizeAction);
+      trayIconMenu->addAction(restoreAction);
+      trayIconMenu->addSeparator();
+      trayIconMenu->addAction(quitAction);
+
+      trayIcon = new QSystemTrayIcon(this);
+      trayIcon->setContextMenu(trayIconMenu);
+      trayIconMenu->setObjectName("trayIconMenu");
+
+      trayIcon->setIcon(QIcon(":/icons/app/icon-32.png"));
+      connect(trayIconMenu,SIGNAL(aboutToShow()),this,SLOT(check_window_state()));
+      if(trayIcon->isSystemTrayAvailable()){
+          trayIcon->show();
+      }else{
+          trayIcon->deleteLater();
+          trayIcon = nullptr;
+          QMessageBox::information(this,"System tray:","System tray not found, Please install a system tray in your system.",QMessageBox::Ok);
+      }
+      // init widget notification
+      notificationPopup = new NotificationPopup(0);
+      notificationPopup->setWindowFlags(Qt::ToolTip | Qt::WindowStaysOnTopHint | Qt::FramelessWindowHint);
+      notificationPopup->adjustSize();
+}
+
+//check window state and set tray menus
+void MainWindow::check_window_state()
+{
+    QObject *tray_icon_menu = this->findChild<QObject*>("trayIconMenu");
+    if(tray_icon_menu != nullptr){
+        if(this->isVisible()){
+            ((QMenu*)(tray_icon_menu))->actions().at(0)->setDisabled(false);
+            ((QMenu*)(tray_icon_menu))->actions().at(1)->setDisabled(true);
+        }else{
+            ((QMenu*)(tray_icon_menu))->actions().at(0)->setDisabled(true);
+            ((QMenu*)(tray_icon_menu))->actions().at(1)->setDisabled(false);
+        }
+    }
 }
 
 void MainWindow::get(const QUrl url)
@@ -80,7 +129,13 @@ void MainWindow::get(const QUrl url)
         request.setRawHeader("sec-fetch-dest","empty");
         request.setRawHeader("accept-language","en-GB,en;q=0.9,hi-IN;q=0.8,hi;q=0.7,en-US;q=0.6,lb;q=0.5");
         QByteArray post_data;
-        post_data.append("{\"operationName\":null,\"variables\":{\"q\":\"\",\"field\":\"date_published\",\"order\":-1,\"offset\":0,\"limit\":20},\"query\":\"query ($q: String!, $offset: Int!, $limit: Int!, $field: String!, $order: Int!) {\\n  findSnapsByName(name: $q, query: {offset: $offset, limit: $limit, sort: {field: $field, order: $order}}) {\\n    snap_id\\n    package_name\\n    title\\n    summary\\n    icon_url\\n    description\\n    __typename\\n  }\\n  findSnapsByNameCount(name: $q) {\\n    count\\n    __typename\\n  }\\n}\\n\"}");
+        post_data.append("{\"operationName\":null,\"variables\":{\"q\":\"\",\"field\":\"date_published\",\"order"
+                         "\":-1,\"offset\":0,\"limit\":20},\"query\":\"query ($q: String!, $offset: Int!, $limit: Int!,"
+                         " $field: String!, $order: Int!) {\\n  findSnapsByName(name: $q, query: {offset: $offset,"
+                         " limit: $limit, sort: {field: $field, order: $order}}) {\\n    snap_id\\n    "
+                         "package_name\\n    title\\n    summary\\n    icon_url\\n    description\\n   "
+                         " __typename\\n  }\\n  findSnapsByNameCount(name: $q) {\\n    count\\n    __typename\\n"
+                         "  }\\n}\\n\"}");
         m_netwManager->post(request,post_data);
     }
 }
@@ -96,8 +151,20 @@ void MainWindow::processResponse(QByteArray data)
 
 }
 
+void MainWindow::notify(QString title, QString message)
+{
+    //TODO: check settings for notification popup type
+    if(settings.value("nativeNotifiaction").toBool() && trayIcon != nullptr){
+        trayIcon->showMessage(title,message,QSystemTrayIcon::Information,100);
+    }else{
+        //fallback to custom widget based notification widget
+        notificationPopup->present(title,message,QImage(":/icons/information-fill.png"));
+    }
+}
+
 void MainWindow::aboutApp()
 {
+    notify("About","Opened");
     QDialog *aboutDialog = new QDialog(this,Qt::Dialog);
     aboutDialog->setWindowModality(Qt::WindowModal);
     QVBoxLayout *layout = new QVBoxLayout;
@@ -168,6 +235,7 @@ void MainWindow::setStyle(QString fname)
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
+    //TODO: impliment default window close method (hide to tray or quit)
     settings.setValue("geometry",saveGeometry());
     settings.setValue("windowState", saveState());
     QWidget::closeEvent(event);

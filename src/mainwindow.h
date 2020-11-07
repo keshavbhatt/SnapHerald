@@ -16,9 +16,11 @@
 #include <QStandardPaths>
 #include <QCryptographicHash>
 #include <QMessageBox>
+#include <QSystemTrayIcon>
 
 #include "request.h"
 #include "utils.h"
+#include "notificationpopup.h"
 
 namespace Ui {
 class MainWindow;
@@ -41,13 +43,19 @@ private slots:
     void downloadError(QString errorString);
     void processResponse(QByteArray data);
     void get(const QUrl url);
+    void show_SysTrayIcon();
+    void check_window_state();
+    void notify(QString title, QString message);
 private:
     Ui::MainWindow *ui;
     QSettings settings;
     Request *request = nullptr;
 
-    QString api_end_point,_cache_path,fields;
+    QString api_end_point,_cache_path;
     QNetworkAccessManager * m_netwManager = nullptr;
+
+    QSystemTrayIcon *trayIcon = nullptr;
+    NotificationPopup *notificationPopup = nullptr;
 };
 
 #endif // MAINWINDOW_H
