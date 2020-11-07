@@ -40,6 +40,7 @@ SOURCES += \
 
 HEADERS += \
         mainwindow.h \
+        notificationpopup.h \
         request.h \
         rungaurd.h \
         utils.h
