@@ -17,10 +17,14 @@
 #include <QCryptographicHash>
 #include <QMessageBox>
 #include <QSystemTrayIcon>
+#include <QMenu>
 
 #include "request.h"
 #include "utils.h"
 #include "notificationpopup.h"
+#include "widgets/waitingspinnerwidget.h"
+
+#include "ui_track.h"
 
 namespace Ui {
 class MainWindow;
@@ -46,8 +50,13 @@ private slots:
     void show_SysTrayIcon();
     void check_window_state();
     void notify(QString title, QString message);
+    void donot_run_onStartupp();
+    void check_for_startup();
+    void run_onstartup();
+    void on_runAtStartUp_toggled(bool arg1);
 private:
     Ui::MainWindow *ui;
+    Ui::track track_ui;
     QSettings settings;
     Request *request = nullptr;
 
@@ -56,6 +65,11 @@ private:
 
     QSystemTrayIcon *trayIcon = nullptr;
     NotificationPopup *notificationPopup = nullptr;
+
+    double trackCoverWidth = 0;
+    QSize trackWidgetSizeHint;
+
+     WaitingSpinnerWidget *_loader = nullptr;
 };
 
 #endif // MAINWINDOW_H

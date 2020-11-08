@@ -20,9 +20,21 @@ MainWindow::MainWindow(QWidget *parent) :
             this->move(availableScreenSize.center()-this->rect().center());
         }
     }
-    ui->mainToolBar->setMovable(false);
+
+    _loader = new WaitingSpinnerWidget(ui->results,true,true);
+    _loader->setRoundness(70.0);
+    _loader->setMinimumTrailOpacity(15.0);
+    _loader->setTrailFadePercentage(70.0);
+    _loader->setNumberOfLines(10);
+    _loader->setLineLength(8);
+    _loader->setLineWidth(2);
+    _loader->setInnerRadius(2);
+    _loader->setRevolutionsPerSecond(3);
+    _loader->setColor(QColor("#1e90ff"));
+
     ui->mainToolBar->addAction(QIcon(":/icons/information-line.png"),tr("About"),this,SLOT(aboutApp()));
     show_SysTrayIcon();
+    check_for_startup();
     init();
 }
 
@@ -36,6 +48,7 @@ void MainWindow::init()
     diskCache->setCacheDirectory(_cache_path);
     m_netwManager->setCache(diskCache);
     connect(m_netwManager,&QNetworkAccessManager::finished,[=](QNetworkReply* rep){
+        _loader->stop();
         if(rep->error() == QNetworkReply::NoError){
             QByteArray response = rep->readAll();
             QJsonDocument jsonDoc = QJsonDocument::fromJson(response);
@@ -64,7 +77,7 @@ void MainWindow::show_SysTrayIcon(){
       this->connect(restoreAction, SIGNAL(triggered()), this, SLOT(showNormal()));
 
       QAction *quitAction = new QAction(QObject::tr("&Quit"), this);
-      this->connect(quitAction, SIGNAL(triggered()), this, SLOT(close()));
+      this->connect(quitAction, SIGNAL(triggered()), qApp, SLOT(quit()));
 
       QMenu *trayIconMenu = new QMenu(this);
       trayIconMenu->addAction(minimizeAction);
@@ -89,6 +102,11 @@ void MainWindow::show_SysTrayIcon(){
       notificationPopup = new NotificationPopup(0);
       notificationPopup->setWindowFlags(Qt::ToolTip | Qt::WindowStaysOnTopHint | Qt::FramelessWindowHint);
       notificationPopup->adjustSize();
+      connect(notificationPopup,&NotificationPopup::notification_clicked,[=](){
+          this->show();
+          this->setWindowState(this->windowState() & ~Qt::WindowMinimized | Qt::WindowActive);
+          this->raise();
+      });
 }
 
 //check window state and set tray menus
@@ -108,10 +126,13 @@ void MainWindow::check_window_state()
 
 void MainWindow::get(const QUrl url)
 {
+    _loader->start();
     QString reqUrlStr = url.toString();
     QString ci_id = QString(QCryptographicHash::hash((reqUrlStr.toUtf8()),QCryptographicHash::Md5).toHex());
     QFileInfo cFile(utils::returnPath("store_cache")+ci_id);
-    if(cFile.isFile() && cFile.exists() && cFile.size()!=0){
+    qDebug()<<QDateTime::currentSecsSinceEpoch() - cFile.lastModified().toSecsSinceEpoch();
+    bool cacheExpired = (QDateTime::currentSecsSinceEpoch() - cFile.lastModified().toSecsSinceEpoch()) > 100 ? true : false;
+    if( !cacheExpired && cFile.isFile() && cFile.exists() && cFile.size()!=0 ){
         processResponse(utils::loadJson(cFile.filePath()).toJson());
         //emit loadedFromCache(cFile.absoluteFilePath());
         qDebug()<<"data loaded from local cache";
@@ -133,7 +154,7 @@ void MainWindow::get(const QUrl url)
                          "\":-1,\"offset\":0,\"limit\":20},\"query\":\"query ($q: String!, $offset: Int!, $limit: Int!,"
                          " $field: String!, $order: Int!) {\\n  findSnapsByName(name: $q, query: {offset: $offset,"
                          " limit: $limit, sort: {field: $field, order: $order}}) {\\n    snap_id\\n    "
-                         "package_name\\n    title\\n    summary\\n    icon_url\\n    description\\n   "
+                         "package_name\\n    title\\n    summary\\n    icon_url\\n   developer_name\\n   date_published\\n   "
                          " __typename\\n  }\\n  findSnapsByNameCount(name: $q) {\\n    count\\n    __typename\\n"
                          "  }\\n}\\n\"}");
         m_netwManager->post(request,post_data);
@@ -147,9 +168,59 @@ void MainWindow::downloadError(QString errorString)
 
 void MainWindow::processResponse(QByteArray data)
 {
-    QString dataString = QTextCodec::codecForMib(106)->toUnicode(data);
+    ui->results->clear();
 
+    QString dataString = QTextCodec::codecForMib(106)->toUnicode(data);
+    QJsonDocument jsonResponse = QJsonDocument::fromJson(dataString.toUtf8());
+    QString snapId,title,summary,developer_name,iconUrl,p_name,date_published;
+    if(jsonResponse.isEmpty())
+    {
+        QMessageBox::critical(this,tr("Error"),tr("No data returned from API"),QMessageBox::Ok);
+    }else{
+        QJsonObject dataObj   = jsonResponse.object().value("data").toObject();
+        QJsonArray snapsArray = dataObj.value("findSnapsByName").toArray();
+        foreach (QJsonValue value, snapsArray)
+        {
+            QJsonObject obj = value.toObject();
+            //only add snaps
+            if(obj.value("__typename").toString()=="Snap")
+            {
+                title   = obj.value("title").toString();
+                summary = obj.value("summary").toString();
+                iconUrl = obj.value("icon_url").toString();
+                snapId  = obj.value("snap_id").toString();
+                p_name  = obj.value("package_name").toString();
+                developer_name = obj.value("developer_name").toString();
+                date_published = QDateTime::fromMSecsSinceEpoch(obj.value("date_published").toDouble()).date().toString();
+
+                QWidget *track_widget = new QWidget(ui->results);
+                track_widget->setObjectName("track-widget-"+snapId);
+                track_ui.setupUi(track_widget);
+                track_widget->setStyleSheet("QWidget#"+track_widget->objectName()+"{background-color: transparent;}");
+                track_ui.title->setText(title);
+                track_ui.summary->setText(summary);
+                track_ui.meta->setText(tr("Published on ")+date_published+tr(" by <b>")+developer_name+"</b>");
+                track_widget->setToolTip(title+" ("+summary+")");
+
+                double ratio  = 200.0/200.0; //actual image aspect ratio
+                double height = track_widget->minimumSizeHint().height();
+                if(trackCoverWidth==0){
+                    trackCoverWidth  = ratio * height; //calculated width based on ratio
+                    trackWidgetSizeHint = track_widget->minimumSizeHint();
+                }
+                track_ui.icon->setFixedSize(trackCoverWidth,trackCoverWidth);
+                track_ui.icon->setRemotePixmap(iconUrl,"qrc:/icons/others/snapcraft.png");
+                QListWidgetItem* item;
+                item = new QListWidgetItem(ui->results);
+                item->setSizeHint(trackWidgetSizeHint);
+                ui->results->setItemWidget(item,track_widget);
+                ui->results->addItem(item);
+            }
+        }
+    }
+    _loader->stop();
 }
+
 
 void MainWindow::notify(QString title, QString message)
 {
@@ -158,13 +229,12 @@ void MainWindow::notify(QString title, QString message)
         trayIcon->showMessage(title,message,QSystemTrayIcon::Information,100);
     }else{
         //fallback to custom widget based notification widget
-        notificationPopup->present(title,message,QImage(":/icons/information-fill.png"));
+        notificationPopup->present(title,message,QPixmap(":/icons/information-fill.png"));
     }
 }
 
 void MainWindow::aboutApp()
 {
-    notify("About","Opened");
     QDialog *aboutDialog = new QDialog(this,Qt::Dialog);
     aboutDialog->setWindowModality(Qt::WindowModal);
     QVBoxLayout *layout = new QVBoxLayout;
@@ -235,10 +305,76 @@ void MainWindow::setStyle(QString fname)
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
-    //TODO: impliment default window close method (hide to tray or quit)
+    if(QSystemTrayIcon::isSystemTrayAvailable()){
+        this->hide();
+        event->ignore();
+        notify(QApplication::applicationName(),"Application is minimized to system tray.");
+        return;
+    }
     settings.setValue("geometry",saveGeometry());
     settings.setValue("windowState", saveState());
     QWidget::closeEvent(event);
+}
+
+//run app at startup
+void MainWindow::run_onstartup(){
+        QString launcher = QApplication::applicationFilePath();
+        QString launcher_name = QApplication::applicationName();
+        QString data ="[Desktop Entry]\n"
+            "Type=Application\n"
+            "Exec="+launcher+" --set\n"
+            "Hidden=false\n"
+            "NoDisplay=false\n"
+            "Name[en_IN]="+launcher_name+"\n"
+            "Name="+launcher_name+"\n"
+            "X-GNOME-Autostart-enabled=true";
+    QString autostartpath = QDir::homePath()+"/.config/autostart";
+
+    QDir dir(autostartpath);
+    if (!dir.exists())
+        dir.mkpath(autostartpath);
+    //check if file exist !!
+    QFileInfo file(autostartpath+"/"+launcher_name+".desktop");
+    if(file.exists()){
+        //remove file and copy file
+        QFile desktop_file(autostartpath+"/"+launcher_name+".desktop");
+        desktop_file.remove();
+
+        //edit file and add X-GNOME-Autostart-enabled=true
+        QFile autostartfile(autostartpath+"/"+launcher_name+".desktop");
+        if (autostartfile.open(QIODevice::Append)) {
+        QTextStream stream(&autostartfile);
+        stream <<data<<endl;}
+    }
+    //if not exists or for other conditions
+    else{
+        //edit file and add X-GNOME-Autostart-enabled=true
+        QFile autostartfile(autostartpath+"/"+launcher_name+".desktop");
+        if (autostartfile.open(QIODevice::Append)) {
+        QTextStream stream(&autostartfile);
+        stream <<data<<endl;}
+    }
+}
+//do not run app at startup
+void MainWindow::donot_run_onStartupp(){
+    QString launcher_name = QApplication::applicationName();
+    QString autostartpath = QDir::homePath()+"/.config/autostart";
+    QFile(autostartpath+"/"+launcher_name+".desktop").remove();
+}
+//slot for startup toggled
+void MainWindow::on_runAtStartUp_toggled(bool arg1){
+    if(arg1){
+        run_onstartup();
+    }else{
+        donot_run_onStartupp();
+    }
+}
+//check if startup file is there .config/autostart
+void MainWindow::check_for_startup(){
+    QString launcher_name = QApplication::applicationName();
+    QString autostartpath = QDir::homePath()+"/.config/autostart";
+    QFile autostartfile(autostartpath+"/"+launcher_name+".desktop");
+    ui->runAtStartUp->setChecked(QFileInfo(autostartfile).exists());
 }
 
 MainWindow::~MainWindow()
