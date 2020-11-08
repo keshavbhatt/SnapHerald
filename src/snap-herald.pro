@@ -34,19 +34,26 @@ CONFIG += c++11
 SOURCES += \
         main.cpp \
         mainwindow.cpp \
+        remotepixmaplabel.cpp \
         request.cpp \
         rungaurd.cpp \
-        utils.cpp
+        utils.cpp \
+        widgets/elidedlabel.cpp \
+        widgets/waitingspinnerwidget.cpp
 
 HEADERS += \
         mainwindow.h \
         notificationpopup.h \
+        remotepixmaplabel.h \
         request.h \
         rungaurd.h \
-        utils.h
+        utils.h \
+        widgets/elidedlabel.h \
+        widgets/waitingspinnerwidget.h
 
 FORMS += \
-        mainwindow.ui
+        mainwindow.ui \
+        track.ui
 
 # Default rules for deployment.
 isEmpty(PREFIX){
