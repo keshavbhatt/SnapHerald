@@ -48,12 +48,12 @@ public:
         adjustSize();
     }
 
-    void present(QString title,QString message, const QImage image)
+    void present(QString title,QString message, const QPixmap image)
     {
 
         m_title.setText("<b>" + title + "</b>");
         m_message.setText(message);
-        m_icon.setPixmap(QPixmap::fromImage(image).scaledToHeight(m_icon.height()));
+        m_icon.setPixmap(image.scaledToHeight(m_icon.height(),Qt::SmoothTransformation));
 
         if(timer == nullptr){
             timer = new QTimer(this);
@@ -64,8 +64,8 @@ public:
            onClosed();
         });
         timer->start();
-
-        int x = QApplication::desktop()->geometry().width()-(this->width()+10);
+        this->adjustSize();
+        int x = QApplication::desktop()->geometry().width()-(this->sizeHint().width()+10);
         int y = 40;
 
         QPropertyAnimation *a = new QPropertyAnimation(this,"pos");
@@ -90,7 +90,6 @@ protected:
     {
         QWidget::mouseReleaseEvent(event);
         if (event->button() == Qt::LeftButton) {
-            qDebug()<<"noti clicked";
             emit notification_clicked();
             onClosed();
         }
