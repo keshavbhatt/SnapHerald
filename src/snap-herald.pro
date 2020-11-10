@@ -37,7 +37,9 @@ SOURCES += \
         remotepixmaplabel.cpp \
         request.cpp \
         rungaurd.cpp \
+        searchwidget.cpp \
         utils.cpp \
+        widgets/cverticallabel.cpp \
         widgets/elidedlabel.cpp \
         widgets/waitingspinnerwidget.cpp
 
@@ -47,12 +49,15 @@ HEADERS += \
         remotepixmaplabel.h \
         request.h \
         rungaurd.h \
+        searchwidget.h \
         utils.h \
+        widgets/cverticallabel.h \
         widgets/elidedlabel.h \
         widgets/waitingspinnerwidget.h
 
 FORMS += \
         mainwindow.ui \
+        searchwidget.ui \
         track.ui
 
 # Default rules for deployment.
