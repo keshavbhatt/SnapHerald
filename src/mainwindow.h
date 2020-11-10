@@ -24,6 +24,7 @@
 #include "notificationpopup.h"
 #include "widgets/waitingspinnerwidget.h"
 #include "searchwidget.h"
+#include "settingswidget.h"
 
 #include "ui_track.h"
 
@@ -51,10 +52,7 @@ private slots:
     void show_SysTrayIcon();
     void check_window_state();
     void notify(QString title, QString message);
-    void donot_run_onStartupp();
-    void check_for_startup();
-    void run_onstartup();
-    void on_runAtStartUp_toggled(bool arg1);
+
     void moreApps();
     void searchApps(const QString query);
     void home();
@@ -62,8 +60,8 @@ private slots:
     void loadedFromCache(const QString cFilePath);
     void rateApp();
     void init_searchWidget();
-    void on_autoRefreshInterval_valueChanged(int arg1);
-
+    void showSettings();
+    void init_settings();
 private:
     Ui::MainWindow *ui;
     Ui::track track_ui;
@@ -85,6 +83,7 @@ private:
     QUrl currentUrl;
     QAction *reloadAction;
     searchWidget *_searchWidget = nullptr;
+    SettingsWidget *_settingsWidget = nullptr;
 };
 
 #endif // MAINWINDOW_H

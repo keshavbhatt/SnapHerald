@@ -10,7 +10,9 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->setupUi(this);
     this->setWindowTitle(QApplication::applicationName());
     this->setWindowIcon(QIcon(":/icons/app/icon-128.png"));
-    setStyle(":/qbreeze/dark.qss");
+    //theme settings mapped to values of indexes of themeCombo widget in SettingsWidget class
+    int theme = settings.value("themeCombo",1).toInt();
+    setStyle(":/qbreeze/"+QString(theme == 1 ? "dark" : "light") +".qss");
     if(settings.value("geometry").isValid()){
         restoreGeometry(settings.value("geometry").toByteArray());
         if(settings.value("windowState").isValid()){
@@ -43,11 +45,12 @@ MainWindow::MainWindow(QWidget *parent) :
     QWidget* hSpacer= new QWidget(this);
     hSpacer->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Preferred);
     ui->mainToolBar->addWidget(hSpacer);
+    init_settings();
+    ui->mainToolBar->addAction(QIcon(":/icons/setting-line.png"),tr("Settings"),this,SLOT(showSettings()));
     ui->mainToolBar->addAction(QIcon(":/icons/others/snapcraft.png"),tr("More Apps"),this,SLOT(moreApps()));
     ui->mainToolBar->addAction(QIcon(":/icons/star-line.png"),tr("Rate"),this,SLOT(rateApp()));
     ui->mainToolBar->addAction(QIcon(":/icons/information-line.png"),tr("About"),this,SLOT(aboutApp()));
     show_SysTrayIcon();
-    check_for_startup();
     init();
 }
 
@@ -67,7 +70,6 @@ void MainWindow::init()
 {
     _cache_path   = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
     api_end_point = "https://snapstats.org/";
-    ui->autoRefreshInterval->setValue(settings.value("autoRefreshInterval",ui->autoRefreshInterval->minimum()).toInt());
 
     m_netwManager = new QNetworkAccessManager(this);
     QNetworkDiskCache* diskCache = new QNetworkDiskCache(this);
@@ -89,7 +91,6 @@ void MainWindow::init()
         }
         rep->deleteLater();
     });
-
     home();
 }
 
@@ -151,7 +152,7 @@ void MainWindow::check_window_state()
 
 void MainWindow::get(const QUrl url,const QByteArray payload)
 {
-    int cacheTimeOut = (ui->autoRefreshInterval->value()-1) * 60;
+    int cacheTimeOut = (settings.value("autoRefreshInterval").toInt()-1) * 60;
     ui->results->clear();
     _loader->start();
     QString reqUrlStr = url.toString();
@@ -246,6 +247,13 @@ void MainWindow::processResponse(QByteArray data)
                 }
                 track_ui.icon->setFixedSize(trackCoverWidth,trackCoverWidth);
                 track_ui.icon->setRemotePixmap(iconUrl,"qrc:/icons/others/snapcraft.png");
+
+                connect(track_ui.info,&QPushButton::clicked,[=](){
+                    if(settings.value("infoActionCombo",0).toInt()==0)
+                        QDesktopServices::openUrl(QUrl("https://snapcraft.io/"+p_name));
+                    else
+                        QDesktopServices::openUrl(QUrl("snap://"+p_name));
+                });
                 QListWidgetItem* item;
                 item = new QListWidgetItem(ui->results);
                 item->setSizeHint(trackWidgetSizeHint);
@@ -261,7 +269,7 @@ void MainWindow::processResponse(QByteArray data)
 void MainWindow::notify(QString title, QString message)
 {
     //TODO: check settings for notification popup type
-    if(settings.value("nativeNotifiaction").toBool() && trayIcon != nullptr){
+    if(settings.value("notificationCombo",1).toInt() == 0 && trayIcon != nullptr){
         trayIcon->showMessage(title,message,QSystemTrayIcon::Information,100);
     }else{
         //fallback to custom widget based notification widget
@@ -271,6 +279,7 @@ void MainWindow::notify(QString title, QString message)
 
 void MainWindow::home()
 {
+    _searchWidget->clear();
     ui->resultInfo->setText(tr("Recently published snaps"));
     //load home
     currentPayload.clear();
@@ -283,6 +292,25 @@ void MainWindow::home()
                      "  }}\"}");
     currentUrl = api_end_point+"graphql?home";
     get(currentUrl,currentPayload);
+}
+
+void MainWindow::init_settings()
+{
+    _settingsWidget = new SettingsWidget(this);
+    _settingsWidget->setWindowFlag(Qt::Dialog);
+    _settingsWidget->setWindowTitle(QApplication::applicationName()+" | "+tr("Settings"));
+
+    connect(_settingsWidget,&SettingsWidget::themeChanged,[=](){
+        //theme settings mapped to values of indexes of themeCombo widget in SettingsWidget class
+        int theme = settings.value("themeCombo",1).toInt();
+        setStyle(":/qbreeze/"+QString(theme == 1 ? "dark" : "light") +".qss");
+    });
+}
+
+void MainWindow::showSettings()
+{
+    _settingsWidget->show();
+    _settingsWidget->raise();
 }
 
 void MainWindow::moreApps()
@@ -300,7 +328,7 @@ void MainWindow::searchApps(const QString query)
     ui->resultInfo->setText(tr("Results for %1").arg(query));
     currentPayload.clear();
     currentPayload.append("{\"operationName\":null,\"variables\":{\"q\":\""+query+"\",\"field\":\"date_published\",\"order"
-                     "\":-1,\"offset\":0,\"limit\":50},\"query\":\"query ($q: String!, $offset: Int!, $limit: Int!,"
+                     "\":1,\"offset\":0,\"limit\":50},\"query\":\"query ($q: String!, $offset: Int!, $limit: Int!,"
                      " $field: String!, $order: Int!) {  findSnapsByName(name: $q, query: {offset: $offset,"
                      " limit: $limit, sort: {field: $field, order: $order}}) {    snap_id    "
                      "package_name    title    summary    icon_url   developer_name   date_published   "
@@ -322,6 +350,13 @@ void MainWindow::aboutApp()
     QVBoxLayout *layout = new QVBoxLayout;
     QLabel *message = new QLabel(aboutDialog);
     layout->addWidget(message);
+    connect(message,&QLabel::linkActivated,[=](const QString linkStr){
+        if(linkStr.contains("about_qt")){
+            qApp->aboutQt();
+        }else{
+            QDesktopServices::openUrl(QUrl(linkStr));
+        }
+    });
     aboutDialog->setLayout(layout);
     aboutDialog->setAttribute(Qt::WA_DeleteOnClose,true);
     aboutDialog->show();
@@ -332,10 +367,12 @@ void MainWindow::aboutApp()
                  "<p align='center' style=' margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;'>Designed and Developed</p>"
                  "<p align='center' style=' margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;'>by <span style=' font-weight:600;'>Keshav Bhatt</span> &lt;keshavnrj@gmail.com&gt;</p>"
                  "<p align='center' style=' margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;'>Website: https://ktechpit.com</p>"
-                 "<p align='center' style=' margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;'>Runtime: Qt 5.5.1</p>"
+                 "<p align='center' style=' margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;'>Runtime: <a style='text-decoration:none' href='http://about_qt'>Qt Toolkit</a></p>"
                  "<p align='center' style=' margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;'>Version: "+QApplication::applicationVersion()+"</p>"
                  "<p align='center' style='-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;'><br /></p>"
                  "<p align='center' style=' margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;'><a href='https://snapcraft.io/search?q=keshavnrj'>More Apps</p>"
+                 "<p align='center' style='-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;'><br /></p>"
+                 "<p align='center' style=' margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;'><a href='https://snapstats.org/about'>Powered by snapstats.org</p>"
                  "<p align='center' style='-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;'><br /></p>";
 
     QGraphicsOpacityEffect *eff = new QGraphicsOpacityEffect(this);
@@ -377,7 +414,7 @@ void MainWindow::setStyle(QString fname)
     palette.setColor(QPalette::ButtonText,Qt::white);
     palette.setColor(QPalette::Disabled,QPalette::ButtonText,QColor(127,127,127));
     palette.setColor(QPalette::BrightText,Qt::red);
-    palette.setColor(QPalette::Link,QColor("skyblue"));
+    palette.setColor(QPalette::Link,QColor("#3DAEE9"));
     palette.setColor(QPalette::Highlight,QColor(49,106,150));
     palette.setColor(QPalette::Disabled,QPalette::Highlight,QColor(80,80,80));
     palette.setColor(QPalette::HighlightedText,Qt::white);
@@ -387,7 +424,7 @@ void MainWindow::setStyle(QString fname)
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
-    if(QSystemTrayIcon::isSystemTrayAvailable()){
+    if(QSystemTrayIcon::isSystemTrayAvailable() && settings.value("closeButtonActionCombo",0).toInt() == 0){
         this->hide();
         event->ignore();
         notify(QApplication::applicationName(),"Application is minimized to system tray.");
@@ -398,73 +435,8 @@ void MainWindow::closeEvent(QCloseEvent *event)
     QWidget::closeEvent(event);
 }
 
-//run app at startup
-void MainWindow::run_onstartup(){
-        QString launcher = QApplication::applicationFilePath();
-        QString launcher_name = QApplication::applicationName();
-        QString data ="[Desktop Entry]\n"
-            "Type=Application\n"
-            "Exec="+launcher+" --set\n"
-            "Hidden=false\n"
-            "NoDisplay=false\n"
-            "Name[en_IN]="+launcher_name+"\n"
-            "Name="+launcher_name+"\n"
-            "X-GNOME-Autostart-enabled=true";
-    QString autostartpath = QDir::homePath()+"/.config/autostart";
-
-    QDir dir(autostartpath);
-    if (!dir.exists())
-        dir.mkpath(autostartpath);
-    //check if file exist !!
-    QFileInfo file(autostartpath+"/"+launcher_name+".desktop");
-    if(file.exists()){
-        //remove file and copy file
-        QFile desktop_file(autostartpath+"/"+launcher_name+".desktop");
-        desktop_file.remove();
-
-        //edit file and add X-GNOME-Autostart-enabled=true
-        QFile autostartfile(autostartpath+"/"+launcher_name+".desktop");
-        if (autostartfile.open(QIODevice::Append)) {
-        QTextStream stream(&autostartfile);
-        stream <<data<<endl;}
-    }
-    //if not exists or for other conditions
-    else{
-        //edit file and add X-GNOME-Autostart-enabled=true
-        QFile autostartfile(autostartpath+"/"+launcher_name+".desktop");
-        if (autostartfile.open(QIODevice::Append)) {
-        QTextStream stream(&autostartfile);
-        stream <<data<<endl;}
-    }
-}
-//do not run app at startup
-void MainWindow::donot_run_onStartupp(){
-    QString launcher_name = QApplication::applicationName();
-    QString autostartpath = QDir::homePath()+"/.config/autostart";
-    QFile(autostartpath+"/"+launcher_name+".desktop").remove();
-}
-//slot for startup toggled
-void MainWindow::on_runAtStartUp_toggled(bool arg1){
-    if(arg1){
-        run_onstartup();
-    }else{
-        donot_run_onStartupp();
-    }
-}
-//check if startup file is there .config/autostart
-void MainWindow::check_for_startup(){
-    QString launcher_name = QApplication::applicationName();
-    QString autostartpath = QDir::homePath()+"/.config/autostart";
-    QFile autostartfile(autostartpath+"/"+launcher_name+".desktop");
-    ui->runAtStartUp->setChecked(QFileInfo(autostartfile).exists());
-}
 
 MainWindow::~MainWindow()
 {
     delete ui;
-}
-
-void MainWindow::on_autoRefreshInterval_valueChanged(int arg1)
-{
-    settings.setValue("autoRefreshInterval",arg1);
 }
