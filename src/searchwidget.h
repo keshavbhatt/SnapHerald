@@ -15,6 +15,8 @@ public:
     explicit searchWidget(QWidget *parent = nullptr);
     ~searchWidget();
 
+public slots:
+    void clear();
 signals:
     void search(const QString query);
 

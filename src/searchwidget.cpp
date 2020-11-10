@@ -14,6 +14,11 @@ searchWidget::~searchWidget()
     delete ui;
 }
 
+void searchWidget::clear()
+{
+    ui->queryEdit->clear();
+}
+
 void searchWidget::on_search_clicked()
 {
     emit search(ui->queryEdit->text());
