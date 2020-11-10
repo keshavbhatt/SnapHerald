@@ -1069,6 +1069,10 @@ QToolButton::menu-button:pressed {
     padding: 5px;
 }
 
+QToolButton:disabled {
+    color: #9FA0A4;
+}
+
 
 /* the subcontrol below is used only in the InstantPopup or DelayedPopup mode */
 
