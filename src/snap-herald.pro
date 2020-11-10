@@ -38,6 +38,7 @@ SOURCES += \
         request.cpp \
         rungaurd.cpp \
         searchwidget.cpp \
+        settingswidget.cpp \
         utils.cpp \
         widgets/cverticallabel.cpp \
         widgets/elidedlabel.cpp \
@@ -50,6 +51,7 @@ HEADERS += \
         request.h \
         rungaurd.h \
         searchwidget.h \
+        settingswidget.h \
         utils.h \
         widgets/cverticallabel.h \
         widgets/elidedlabel.h \
@@ -58,6 +60,7 @@ HEADERS += \
 FORMS += \
         mainwindow.ui \
         searchwidget.ui \
+        settingswidget.ui \
         track.ui
 
 # Default rules for deployment.
