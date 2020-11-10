@@ -15,7 +15,7 @@ DEFINES += VERSIONSTR=\\\"$${VERSION}\\\"
 CONFIG(release, debug|release):DEFINES += QT_NO_DEBUG_OUTPUT
 
 
-TARGET = snapherald
+TARGET = snap-herald
 TEMPLATE = app
 
 # The following define makes your compiler emit warnings if you use
