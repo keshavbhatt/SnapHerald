@@ -38,18 +38,14 @@
     <widget class="QWidget" name="widget" native="true">
      <property name="styleSheet">
       <string notr="true"> QWidget#widget
-       {color: silver;
+       {
 		  
-         background-image:url(:/icons/texture.png);
+        background-image:url(:/icons/texture.png);
 		 background-clip: border;
         border-image: none; 
  		 border-top: 1px solid rgba(40,93,115,153) ;
  		 border-bottom: 1px solid rgba(40,93,115,153) ;
 
-		background-color: qlineargradient(spread:reflect,
-                 x1:1, y1:0, x2:1, y2:1, stop:0 
-                rgba(24, 25, 26, 10), stop:1 
-                rgba(24, 25, 26, 120));
 }
 </string>
      </property>
@@ -195,7 +191,7 @@ padding: 6px;</string>
            </sizepolicy>
           </property>
           <property name="styleSheet">
-           <string notr="true">border:none;</string>
+           <string notr="true"/>
           </property>
           <property name="text">
            <string/>
