@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include <QSystemTrayIcon>
+#include <QDesktopServices>
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -32,16 +33,41 @@ MainWindow::MainWindow(QWidget *parent) :
     _loader->setRevolutionsPerSecond(3);
     _loader->setColor(QColor("#1e90ff"));
 
+    ui->mainToolBar->addAction(QIcon(":/icons/home-8-line.png"),tr("Home"),this,SLOT(home()));
+    reloadAction = ui->mainToolBar->addAction(QIcon(":/icons/refresh-line.png"),tr("Reload"),this,SLOT(forceReload()));
+    reloadAction->setToolTip(tr("Results loaded from cache,\nClick to refresh cache"));
+    reloadAction->setToolTip(tr("Refresh cache"));
+    reloadAction->setEnabled(false);
+    init_searchWidget();
+    ui->mainToolBar->addWidget(_searchWidget);
+    QWidget* hSpacer= new QWidget(this);
+    hSpacer->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Preferred);
+    ui->mainToolBar->addWidget(hSpacer);
+    ui->mainToolBar->addAction(QIcon(":/icons/others/snapcraft.png"),tr("More Apps"),this,SLOT(moreApps()));
+    ui->mainToolBar->addAction(QIcon(":/icons/star-line.png"),tr("Rate"),this,SLOT(rateApp()));
     ui->mainToolBar->addAction(QIcon(":/icons/information-line.png"),tr("About"),this,SLOT(aboutApp()));
     show_SysTrayIcon();
     check_for_startup();
     init();
 }
 
+void MainWindow::init_searchWidget()
+{
+    _searchWidget = new searchWidget(this);
+    _searchWidget->setWindowFlag(Qt::Widget);
+    _searchWidget->setContentsMargins(0,0,0,0);
+    _searchWidget->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Expanding);
+    _searchWidget->setMinimumWidth(280);
+    connect(_searchWidget,&searchWidget::search,[=](const QString query){
+       searchApps(query);
+    });
+}
+
 void MainWindow::init()
 {
     _cache_path   = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
     api_end_point = "https://snapstats.org/";
+    ui->autoRefreshInterval->setValue(settings.value("autoRefreshInterval",ui->autoRefreshInterval->minimum()).toInt());
 
     m_netwManager = new QNetworkAccessManager(this);
     QNetworkDiskCache* diskCache = new QNetworkDiskCache(this);
@@ -64,8 +90,7 @@ void MainWindow::init()
         rep->deleteLater();
     });
 
-    //load home
-    get(api_end_point+"graphql");
+    home();
 }
 
 void MainWindow::show_SysTrayIcon(){
@@ -124,19 +149,23 @@ void MainWindow::check_window_state()
     }
 }
 
-void MainWindow::get(const QUrl url)
+void MainWindow::get(const QUrl url,const QByteArray payload)
 {
+    int cacheTimeOut = (ui->autoRefreshInterval->value()-1) * 60;
+    ui->results->clear();
     _loader->start();
     QString reqUrlStr = url.toString();
     QString ci_id = QString(QCryptographicHash::hash((reqUrlStr.toUtf8()),QCryptographicHash::Md5).toHex());
     QFileInfo cFile(utils::returnPath("store_cache")+ci_id);
     qDebug()<<QDateTime::currentSecsSinceEpoch() - cFile.lastModified().toSecsSinceEpoch();
-    bool cacheExpired = (QDateTime::currentSecsSinceEpoch() - cFile.lastModified().toSecsSinceEpoch()) > 100 ? true : false;
+    bool cacheExpired = (QDateTime::currentSecsSinceEpoch() - cFile.lastModified().toSecsSinceEpoch()) > cacheTimeOut ? true : false;
     if( !cacheExpired && cFile.isFile() && cFile.exists() && cFile.size()!=0 ){
         processResponse(utils::loadJson(cFile.filePath()).toJson());
-        //emit loadedFromCache(cFile.absoluteFilePath());
+        loadedFromCache(cFile.absoluteFilePath());
         qDebug()<<"data loaded from local cache";
     }else{
+        reloadAction->setToolTip(tr("Refresh cache"));
+        reloadAction->setEnabled(false); // we loading fresh data so disable reload button
         QNetworkRequest request(url);
         request.setRawHeader("user-agent","Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.125 Safari/537.36");
         request.setRawHeader("authority","snapstats.org");
@@ -149,16 +178,23 @@ void MainWindow::get(const QUrl url)
         request.setRawHeader("sec-fetch-mode","cors");
         request.setRawHeader("sec-fetch-dest","empty");
         request.setRawHeader("accept-language","en-GB,en;q=0.9,hi-IN;q=0.8,hi;q=0.7,en-US;q=0.6,lb;q=0.5");
-        QByteArray post_data;
-        post_data.append("{\"operationName\":null,\"variables\":{\"q\":\"\",\"field\":\"date_published\",\"order"
-                         "\":-1,\"offset\":0,\"limit\":20},\"query\":\"query ($q: String!, $offset: Int!, $limit: Int!,"
-                         " $field: String!, $order: Int!) {\\n  findSnapsByName(name: $q, query: {offset: $offset,"
-                         " limit: $limit, sort: {field: $field, order: $order}}) {\\n    snap_id\\n    "
-                         "package_name\\n    title\\n    summary\\n    icon_url\\n   developer_name\\n   date_published\\n   "
-                         " __typename\\n  }\\n  findSnapsByNameCount(name: $q) {\\n    count\\n    __typename\\n"
-                         "  }\\n}\\n\"}");
-        m_netwManager->post(request,post_data);
+        m_netwManager->post(request,payload);
     }
+}
+
+void MainWindow::loadedFromCache(const QString cFilePath)
+{
+    reloadAction->setEnabled(true);
+    reloadAction->setToolTip(tr("Results loaded from cache,\nClick to refresh cache"));
+    reloadAction->disconnect();
+    connect(reloadAction,&QAction::triggered,[=](){
+        QFile c_file(cFilePath);
+        if(c_file.exists()){
+            if(c_file.remove()){
+                forceReload();
+            }
+        }
+    });
 }
 
 void MainWindow::downloadError(QString errorString)
@@ -231,6 +267,52 @@ void MainWindow::notify(QString title, QString message)
         //fallback to custom widget based notification widget
         notificationPopup->present(title,message,QPixmap(":/icons/information-fill.png"));
     }
+}
+
+void MainWindow::home()
+{
+    ui->resultInfo->setText(tr("Recently published snaps"));
+    //load home
+    currentPayload.clear();
+    currentPayload.append("{\"operationName\":null,\"variables\":{\"q\":\"\",\"field\":\"date_published\",\"order"
+                     "\":-1,\"offset\":0,\"limit\":50},\"query\":\"query ($q: String!, $offset: Int!, $limit: Int!,"
+                     " $field: String!, $order: Int!) {  findSnapsByName(name: $q, query: {offset: $offset,"
+                     " limit: $limit, sort: {field: $field, order: $order}}) {    snap_id    "
+                     "package_name    title    summary    icon_url   developer_name   date_published   "
+                     " __typename  }  findSnapsByNameCount(name: $q) {    count    __typename"
+                     "  }}\"}");
+    currentUrl = api_end_point+"graphql?home";
+    get(currentUrl,currentPayload);
+}
+
+void MainWindow::moreApps()
+{
+    QDesktopServices::openUrl(QUrl("https://snapcraft.io/search?q=keshavnrj"));
+}
+
+void MainWindow::forceReload()
+{
+    get(currentUrl,currentPayload);
+}
+
+void MainWindow::searchApps(const QString query)
+{
+    ui->resultInfo->setText(tr("Results for %1").arg(query));
+    currentPayload.clear();
+    currentPayload.append("{\"operationName\":null,\"variables\":{\"q\":\""+query+"\",\"field\":\"date_published\",\"order"
+                     "\":-1,\"offset\":0,\"limit\":50},\"query\":\"query ($q: String!, $offset: Int!, $limit: Int!,"
+                     " $field: String!, $order: Int!) {  findSnapsByName(name: $q, query: {offset: $offset,"
+                     " limit: $limit, sort: {field: $field, order: $order}}) {    snap_id    "
+                     "package_name    title    summary    icon_url   developer_name   date_published   "
+                     " __typename  }  findSnapsByNameCount(name: $q) {    count    __typename"
+                     "  }}\"}");
+    currentUrl = api_end_point+"graphql?"+query;
+    get(currentUrl,currentPayload);
+}
+
+void MainWindow::rateApp()
+{
+    QDesktopServices::openUrl(QUrl("snap://snap-herald"));
 }
 
 void MainWindow::aboutApp()
@@ -380,4 +462,9 @@ void MainWindow::check_for_startup(){
 MainWindow::~MainWindow()
 {
     delete ui;
+}
+
+void MainWindow::on_autoRefreshInterval_valueChanged(int arg1)
+{
+    settings.setValue("autoRefreshInterval",arg1);
 }

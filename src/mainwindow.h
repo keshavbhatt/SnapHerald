@@ -23,6 +23,7 @@
 #include "utils.h"
 #include "notificationpopup.h"
 #include "widgets/waitingspinnerwidget.h"
+#include "searchwidget.h"
 
 #include "ui_track.h"
 
@@ -46,7 +47,7 @@ private slots:
     void init();
     void downloadError(QString errorString);
     void processResponse(QByteArray data);
-    void get(const QUrl url);
+    void get(const QUrl url, const QByteArray payload);
     void show_SysTrayIcon();
     void check_window_state();
     void notify(QString title, QString message);
@@ -54,6 +55,15 @@ private slots:
     void check_for_startup();
     void run_onstartup();
     void on_runAtStartUp_toggled(bool arg1);
+    void moreApps();
+    void searchApps(const QString query);
+    void home();
+    void forceReload();
+    void loadedFromCache(const QString cFilePath);
+    void rateApp();
+    void init_searchWidget();
+    void on_autoRefreshInterval_valueChanged(int arg1);
+
 private:
     Ui::MainWindow *ui;
     Ui::track track_ui;
@@ -69,7 +79,12 @@ private:
     double trackCoverWidth = 0;
     QSize trackWidgetSizeHint;
 
-     WaitingSpinnerWidget *_loader = nullptr;
+    WaitingSpinnerWidget *_loader = nullptr;
+
+    QByteArray currentPayload;
+    QUrl currentUrl;
+    QAction *reloadAction;
+    searchWidget *_searchWidget = nullptr;
 };
 
 #endif // MAINWINDOW_H
