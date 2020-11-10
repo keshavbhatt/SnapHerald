@@ -70,7 +70,7 @@ void SettingsWidget::run_onstartup()
         QString launcher_name = QApplication::applicationName();
         QString data ="[Desktop Entry]\n"
             "Type=Application\n"
-            "Exec="+launcher+" --set\n"
+            "Exec="+launcher+" --force-reload\n"
             "Hidden=false\n"
             "NoDisplay=false\n"
             "Name[en_IN]="+launcher_name+"\n"

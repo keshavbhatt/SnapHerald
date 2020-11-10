@@ -42,6 +42,8 @@ public:
 
 protected slots:
     void closeEvent(QCloseEvent *event);
+public slots:
+    void forceReload();
 private slots:
     void setStyle(QString fname);
     void aboutApp();
@@ -56,7 +58,7 @@ private slots:
     void moreApps();
     void searchApps(const QString query);
     void home();
-    void forceReload();
+
     void loadedFromCache(const QString cFilePath);
     void rateApp();
     void init_searchWidget();

@@ -17,7 +17,12 @@ int main(int argc, char *argv[])
     QApplication::setApplicationVersion(VERSIONSTR);
 
     MainWindow w;
-    w.show();
+    QStringList argsList = a.arguments();
+    if(argsList.contains("--force-reload",Qt::CaseSensitive)){
+        w.forceReload();
+    }else{
+        w.show();
+    }
 
     return a.exec();
 }
