@@ -202,7 +202,7 @@ padding: 6px;</string>
           </property>
           <property name="icon">
            <iconset resource="icons.qrc">
-            <normaloff>:/icons/error-warning-line.png</normaloff>:/icons/error-warning-line.png</iconset>
+            <normaloff>:/icons/information-line.png</normaloff>:/icons/information-line.png</iconset>
           </property>
          </widget>
         </item>
