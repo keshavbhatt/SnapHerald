@@ -91,7 +91,6 @@ void MainWindow::init()
         }
         rep->deleteLater();
     });
-    home();
 }
 
 void MainWindow::show_SysTrayIcon(){
@@ -206,6 +205,20 @@ void MainWindow::downloadError(QString errorString)
 void MainWindow::processResponse(QByteArray data)
 {
     ui->results->clear();
+    QStringList lastRevStringList, newRevStringList;
+    bool isHome = currentUrl.toString().contains("?home");
+    if(isHome){
+        //read last file
+        QFile lastFile(utils::returnPath("revisions")+"/last");
+        if(lastFile.exists()){
+           QJsonDocument lastRevJson = utils::loadJson(lastFile.fileName());
+           if(!lastRevJson.isEmpty()){
+               foreach (QJsonValue val, lastRevJson.array()) {
+                   lastRevStringList.append(val.toString());
+               }
+           }
+        }
+    }
 
     QString dataString = QTextCodec::codecForMib(106)->toUnicode(data);
     QJsonDocument jsonResponse = QJsonDocument::fromJson(dataString.toUtf8());
@@ -214,6 +227,7 @@ void MainWindow::processResponse(QByteArray data)
     {
         QMessageBox::critical(this,tr("Error"),tr("No data returned from API"),QMessageBox::Ok);
     }else{
+        QJsonArray sIdArray;
         QJsonObject dataObj   = jsonResponse.object().value("data").toObject();
         QJsonArray snapsArray = dataObj.value("findSnapsByName").toArray();
         foreach (QJsonValue value, snapsArray)
@@ -230,6 +244,18 @@ void MainWindow::processResponse(QByteArray data)
                 developer_name = obj.value("developer_name").toString();
                 date_published = QDateTime::fromMSecsSinceEpoch(obj.value("date_published").toDouble()).date().toString();
 
+                //save to lastRev
+                if(isHome){
+                    QJsonDocument jsonDoc;
+                    sIdArray.append(QJsonValue(snapId));
+                    //append new snaps to newRevStringList
+                    if(lastRevStringList.contains(snapId)==false)
+                        newRevStringList.append(snapId);
+                    jsonDoc.setArray(sIdArray);
+                    if(!jsonDoc.isNull())
+                        utils::saveJson(jsonDoc,utils::returnPath("revisions")+"/last");
+                }
+
                 QWidget *track_widget = new QWidget(ui->results);
                 track_widget->setObjectName("track-widget-"+snapId);
                 track_ui.setupUi(track_widget);
@@ -238,6 +264,7 @@ void MainWindow::processResponse(QByteArray data)
                 track_ui.summary->setText(summary);
                 track_ui.meta->setText(tr("Published on ")+date_published+tr(" by <b>")+developer_name+"</b>");
                 track_widget->setToolTip(title+" ("+summary+")");
+                track_ui.new_snap->hide();
 
                 double ratio  = 200.0/200.0; //actual image aspect ratio
                 double height = track_widget->minimumSizeHint().height();
@@ -253,6 +280,7 @@ void MainWindow::processResponse(QByteArray data)
                         QDesktopServices::openUrl(QUrl("https://snapcraft.io/"+p_name));
                     else
                         QDesktopServices::openUrl(QUrl("snap://"+p_name));
+                    hideNewLabel(snapId);
                 });
                 QListWidgetItem* item;
                 item = new QListWidgetItem(ui->results);
@@ -261,8 +289,27 @@ void MainWindow::processResponse(QByteArray data)
                 ui->results->addItem(item);
             }
         }
+        if(isHome)
+            notifyNewSnaps(newRevStringList);
     }
     _loader->stop();
+}
+
+void MainWindow::hideNewLabel(QString snapId)
+{
+    QWidget *listWidget = ui->results->findChild<QWidget*>("track-widget-"+snapId);
+    listWidget->findChild<QLabel*>("new_snap")->hide();
+}
+
+void MainWindow::notifyNewSnaps(QStringList newRevStringList)
+{
+    int count = newRevStringList.count();
+    foreach (QString snapId, newRevStringList) {
+        QWidget *listWidget = ui->results->findChild<QWidget*>("track-widget-"+snapId);
+        listWidget->findChild<QLabel*>("new_snap")->show();
+    }
+    if(count>0)
+       notify(tr("New snaps published"),QString::number(count)+" new snap"+QString(count > 1 ?"s":"")+" in store.");
 }
 
 
@@ -277,21 +324,37 @@ void MainWindow::notify(QString title, QString message)
     }
 }
 
-void MainWindow::home()
+void MainWindow::summonHome()
 {
     _searchWidget->clear();
     ui->resultInfo->setText(tr("Recently published snaps"));
     //load home
     currentPayload.clear();
     currentPayload.append("{\"operationName\":null,\"variables\":{\"q\":\"\",\"field\":\"date_published\",\"order"
-                     "\":-1,\"offset\":0,\"limit\":50},\"query\":\"query ($q: String!, $offset: Int!, $limit: Int!,"
+                     "\":-1,\"offset\":0,\"limit\":20},\"query\":\"query ($q: String!, $offset: Int!, $limit: Int!,"
                      " $field: String!, $order: Int!) {  findSnapsByName(name: $q, query: {offset: $offset,"
                      " limit: $limit, sort: {field: $field, order: $order}}) {    snap_id    "
                      "package_name    title    summary    icon_url   developer_name   date_published   "
                      " __typename  }  findSnapsByNameCount(name: $q) {    count    __typename"
                      "  }}\"}");
     currentUrl = api_end_point+"graphql?home";
-    get(currentUrl,currentPayload);
+}
+
+void MainWindow::home(bool forceReload)
+{
+    summonHome();
+    if(forceReload){
+        QString ci_id = QString(QCryptographicHash::hash((currentUrl.toString().toUtf8()),QCryptographicHash::Md5).toHex());
+        QFileInfo cFile(utils::returnPath("store_cache")+ci_id);
+        QFile c_file(cFile.absoluteFilePath());
+        if(c_file.exists()){
+            if(c_file.remove()){
+                get(currentUrl,currentPayload);
+            }
+        }
+    }else{
+        get(currentUrl,currentPayload);
+    }
 }
 
 void MainWindow::init_settings()
@@ -300,6 +363,9 @@ void MainWindow::init_settings()
     _settingsWidget->setWindowFlag(Qt::Dialog);
     _settingsWidget->setWindowTitle(QApplication::applicationName()+" | "+tr("Settings"));
 
+    connect(_settingsWidget,&SettingsWidget::testNotify,[=](){
+       notify(QApplication::applicationName(),tr("Test Notification"));
+    });
     connect(_settingsWidget,&SettingsWidget::themeChanged,[=](){
         //theme settings mapped to values of indexes of themeCombo widget in SettingsWidget class
         int theme = settings.value("themeCombo",1).toInt();
@@ -434,7 +500,6 @@ void MainWindow::closeEvent(QCloseEvent *event)
     settings.setValue("windowState", saveState());
     QWidget::closeEvent(event);
 }
-
 
 MainWindow::~MainWindow()
 {

@@ -43,8 +43,9 @@ public:
 protected slots:
     void closeEvent(QCloseEvent *event);
 public slots:
-    void forceReload();
+    void home(bool forceReload = false);
 private slots:
+    void forceReload();
     void setStyle(QString fname);
     void aboutApp();
     void init();
@@ -57,13 +58,15 @@ private slots:
 
     void moreApps();
     void searchApps(const QString query);
-    void home();
 
     void loadedFromCache(const QString cFilePath);
     void rateApp();
     void init_searchWidget();
     void showSettings();
     void init_settings();
+    void notifyNewSnaps(QStringList newRevStringList);
+    void hideNewLabel(QString snapId);
+    void summonHome();
 private:
     Ui::MainWindow *ui;
     Ui::track track_ui;
