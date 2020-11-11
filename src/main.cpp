@@ -19,8 +19,9 @@ int main(int argc, char *argv[])
     MainWindow w;
     QStringList argsList = a.arguments();
     if(argsList.contains("--force-reload",Qt::CaseSensitive)){
-        w.forceReload();
+        w.home(true);
     }else{
+        w.home(false);
         w.show();
     }
 
