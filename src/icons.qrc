@@ -111,5 +111,6 @@
         <file>icons/app/icon-16.png</file>
         <file>icons/app/icon-512.png</file>
         <file>icons/app/resize.sh</file>
+        <file>icons/others/greendot.png</file>
     </qresource>
 </RCC>
