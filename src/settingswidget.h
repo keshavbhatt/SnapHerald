@@ -19,6 +19,7 @@ class SettingsWidget : public QWidget
 
 signals:
     void themeChanged();
+    void testNotify();
 
 public:
     explicit SettingsWidget(QWidget *parent = nullptr);
@@ -47,6 +48,8 @@ private slots:
     void run_onstartup();
 
     void on_reset_clicked();
+
+    void on_tryNotification_clicked();
 
 private:
     Ui::SettingsWidget *ui;

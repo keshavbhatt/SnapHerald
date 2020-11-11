@@ -143,3 +143,8 @@ void SettingsWidget::closeEvent(QCloseEvent *event)
     settings.setValue("SettingsWidget_geometry",saveGeometry());
     QWidget::closeEvent(event);
 }
+
+void SettingsWidget::on_tryNotification_clicked()
+{
+    emit testNotify();
+}
