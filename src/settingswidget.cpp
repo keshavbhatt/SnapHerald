@@ -7,6 +7,13 @@ SettingsWidget::SettingsWidget(QWidget *parent) :
 {
     ui->setupUi(this);
 
+    //minmum duration of auto refresh timer
+#ifdef QT_DEBUG
+    ui->autoRefreshInterval->setMinimum(2);
+#elif
+    ui->autoRefreshInterval->setMinimum(40);
+#endif
+
     if(settings.value("SettingsWidget_geometry").isValid()){
         restoreGeometry(settings.value("SettingsWidget_geometry").toByteArray());
     }
