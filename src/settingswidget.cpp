@@ -49,12 +49,14 @@ void SettingsWidget::on_notificationCombo_currentIndexChanged(int index)
 void SettingsWidget::on_autoRefreshInterval_valueChanged(int arg1)
 {
     settings.setValue("autoRefreshInterval",arg1);
+    emit autoRefreshIntervalChanged();
 }
 
 
 void SettingsWidget::on_infoActionCombo_currentIndexChanged(int index)
 {
     settings.setValue("infoActionCombo",index);
+    emit infoButtonActionChanged();
 }
 
 void SettingsWidget::on_closeButtonActionCombo_currentIndexChanged(int index)

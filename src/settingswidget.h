@@ -20,6 +20,8 @@ class SettingsWidget : public QWidget
 signals:
     void themeChanged();
     void testNotify();
+    void infoButtonActionChanged();
+    void autoRefreshIntervalChanged();
 
 public:
     explicit SettingsWidget(QWidget *parent = nullptr);

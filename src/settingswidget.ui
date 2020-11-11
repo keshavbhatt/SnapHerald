@@ -110,7 +110,7 @@
            <string>after every </string>
           </property>
           <property name="minimum">
-           <number>40</number>
+           <number>1</number>
           </property>
           <property name="maximum">
            <number>2000</number>
