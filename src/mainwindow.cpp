@@ -91,7 +91,14 @@ void MainWindow::init()
         }
         rep->deleteLater();
     });
+    //init _autoRefreshTimer
+    _autoRefreshTimer = new QTimer(this);
+    _autoRefreshTimer->setInterval(settings.value("autoRefreshInterval").toInt()-1 * 60 * 1000);
+    connect(_autoRefreshTimer,&QTimer::timeout,[=](){
+       home(true);
+    });
 }
+
 
 void MainWindow::show_SysTrayIcon(){
 
@@ -291,6 +298,7 @@ void MainWindow::processResponse(QByteArray data)
         }
         if(isHome)
             notifyNewSnaps(newRevStringList);
+        updateInfoButtonTooltip();
     }
     _loader->stop();
 }
@@ -342,6 +350,7 @@ void MainWindow::summonHome()
 
 void MainWindow::home(bool forceReload)
 {
+    qDebug()<<QString(forceReload ? "Force reloading home":"Loading home")<<_autoRefreshTimer->interval();
     summonHome();
     if(forceReload){
         QString ci_id = QString(QCryptographicHash::hash((currentUrl.toString().toUtf8()),QCryptographicHash::Md5).toHex());
@@ -363,6 +372,12 @@ void MainWindow::init_settings()
     _settingsWidget->setWindowFlag(Qt::Dialog);
     _settingsWidget->setWindowTitle(QApplication::applicationName()+" | "+tr("Settings"));
 
+    connect(_settingsWidget,&SettingsWidget::autoRefreshIntervalChanged,[=](){
+       updateAutoRefreshInterval();
+    });
+    connect(_settingsWidget,&SettingsWidget::infoButtonActionChanged,[=](){
+       updateInfoButtonTooltip();
+    });
     connect(_settingsWidget,&SettingsWidget::testNotify,[=](){
        notify(QApplication::applicationName(),tr("Test Notification"));
     });
@@ -371,6 +386,24 @@ void MainWindow::init_settings()
         int theme = settings.value("themeCombo",1).toInt();
         setStyle(":/qbreeze/"+QString(theme == 1 ? "dark" : "light") +".qss");
     });
+}
+
+void MainWindow::updateInfoButtonTooltip()
+{
+    bool  openStorePage = settings.value("infoActionCombo",0).toInt()==0;
+    foreach (QPushButton*pb, ui->results->findChildren<QPushButton*>()) {
+        if(openStorePage)
+            pb->setToolTip(tr("Open in store page"));
+        else
+            pb->setToolTip(tr("Open in softwares app"));
+    }
+}
+
+void MainWindow::updateAutoRefreshInterval()
+{
+    _autoRefreshTimer->stop();
+    _autoRefreshTimer->setInterval(settings.value("autoRefreshInterval").toInt()-1 * 60 * 1000);
+    _autoRefreshTimer->start();
 }
 
 void MainWindow::showSettings()

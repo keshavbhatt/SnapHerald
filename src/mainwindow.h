@@ -18,6 +18,7 @@
 #include <QMessageBox>
 #include <QSystemTrayIcon>
 #include <QMenu>
+#include <QTimer>
 
 #include "request.h"
 #include "utils.h"
@@ -67,6 +68,8 @@ private slots:
     void notifyNewSnaps(QStringList newRevStringList);
     void hideNewLabel(QString snapId);
     void summonHome();
+    void updateInfoButtonTooltip();
+    void updateAutoRefreshInterval();
 private:
     Ui::MainWindow *ui;
     Ui::track track_ui;
@@ -89,6 +92,7 @@ private:
     QAction *reloadAction;
     searchWidget *_searchWidget = nullptr;
     SettingsWidget *_settingsWidget = nullptr;
+    QTimer *_autoRefreshTimer = nullptr;
 };
 
 #endif // MAINWINDOW_H
