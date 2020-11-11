@@ -26,6 +26,7 @@
 #include "widgets/waitingspinnerwidget.h"
 #include "searchwidget.h"
 #include "settingswidget.h"
+#include "elapsedtimer.h"
 
 #include "ui_track.h"
 
@@ -40,6 +41,8 @@ class MainWindow : public QMainWindow
 public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
+signals:
+    void timerUpdated(int);
 
 protected slots:
     void closeEvent(QCloseEvent *event);
@@ -92,7 +95,6 @@ private:
     QAction *reloadAction;
     searchWidget *_searchWidget = nullptr;
     SettingsWidget *_settingsWidget = nullptr;
-    QTimer *_autoRefreshTimer = nullptr;
+    ElapsedTimer *_autoRefreshTimer = nullptr;
 };
-
 #endif // MAINWINDOW_H

@@ -11,7 +11,7 @@ SettingsWidget::SettingsWidget(QWidget *parent) :
 #ifdef QT_DEBUG
     ui->autoRefreshInterval->setMinimum(2);
 #else
-    ui->autoRefreshInterval->setMinimum(20);
+    ui->autoRefreshInterval->setMinimum(10);
 #endif
 
     if(settings.value("SettingsWidget_geometry").isValid()){
@@ -35,6 +35,11 @@ SettingsWidget::SettingsWidget(QWidget *parent) :
     //load close button action settings
     ui->closeButtonActionCombo->setCurrentIndex(settings.value("closeButtonActionCombo",0).toInt());
 
+}
+
+void SettingsWidget::updateTimeLeftForRefresh(int timeLeft)
+{
+    ui->timeLeft->setText(QDateTime::fromTime_t(timeLeft/1000).toUTC().toString("hh:mm:ss"));
 }
 
 SettingsWidget::~SettingsWidget()

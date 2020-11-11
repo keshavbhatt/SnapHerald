@@ -7,6 +7,7 @@
 #include <QDir>
 #include <QTextStream>
 #include <QScreen>
+#include <QDateTime>
 
 
 namespace Ui {
@@ -27,6 +28,8 @@ public:
     explicit SettingsWidget(QWidget *parent = nullptr);
     ~SettingsWidget();
 
+public slots:
+    void updateTimeLeftForRefresh(int timeLeft);
 protected slots:
     void closeEvent(QCloseEvent *event);
 

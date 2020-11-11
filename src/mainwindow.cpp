@@ -93,11 +93,18 @@ void MainWindow::init()
     });
 
     //init _autoRefreshTimer
-    _autoRefreshTimer = new QTimer(this);
-    _autoRefreshTimer->setInterval((settings.value("autoRefreshInterval").toInt()-1) * 60 * 1000);
-    connect(_autoRefreshTimer,&QTimer::timeout,[=](){
+
+    _autoRefreshTimer = new ElapsedTimer(this);
+    _autoRefreshTimer->setInterval((settings.value("autoRefreshInterval").toInt()) * 60 * 1000);
+    connect(_autoRefreshTimer,&ElapsedTimer::timeout,[=](){
        home(true);
     });
+    QTimer *updater = new QTimer(this);
+    updater->setInterval(1000);
+    connect(updater,&ElapsedTimer::timeout,[=](){
+        emit timerUpdated(_autoRefreshTimer->timeLeft());
+    });
+    updater->start();
     _autoRefreshTimer->start();
 }
 
@@ -374,6 +381,7 @@ void MainWindow::init_settings()
     _settingsWidget->setWindowFlag(Qt::Dialog);
     _settingsWidget->setWindowTitle(QApplication::applicationName()+" | "+tr("Settings"));
 
+    connect(this,SIGNAL(timerUpdated(int)),_settingsWidget,SLOT(updateTimeLeftForRefresh(int)));
     connect(_settingsWidget,&SettingsWidget::autoRefreshIntervalChanged,[=](){
        updateAutoRefreshInterval();
     });
@@ -404,7 +412,7 @@ void MainWindow::updateInfoButtonTooltip()
 void MainWindow::updateAutoRefreshInterval()
 {
     _autoRefreshTimer->stop();
-    _autoRefreshTimer->setInterval((settings.value("autoRefreshInterval").toInt()-1) * 60 * 1000);
+    _autoRefreshTimer->setInterval((settings.value("autoRefreshInterval").toInt()) * 60 * 1000);
     _autoRefreshTimer->start();
 }
 
@@ -468,12 +476,14 @@ void MainWindow::aboutApp()
                  "<p align='center' style=' margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;'>Designed and Developed</p>"
                  "<p align='center' style=' margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;'>by <span style=' font-weight:600;'>Keshav Bhatt</span> &lt;keshavnrj@gmail.com&gt;</p>"
                  "<p align='center' style=' margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;'>Website: https://ktechpit.com</p>"
-                 "<p align='center' style=' margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;'>Runtime: <a style='text-decoration:none' href='http://about_qt'>Qt Toolkit</a></p>"
+                 "<p align='center' style=' margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;'>Runtime: <a href='http://about_qt'>Qt Toolkit</a></p>"
                  "<p align='center' style=' margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;'>Version: "+QApplication::applicationVersion()+"</p>"
                  "<p align='center' style='-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;'><br /></p>"
                  "<p align='center' style=' margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;'><a href='https://snapcraft.io/search?q=keshavnrj'>More Apps</p>"
                  "<p align='center' style='-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;'><br /></p>"
                  "<p align='center' style=' margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;'><a href='https://snapstats.org/about'>Powered by snapstats.org</p>"
+                 "<p align='center' style='-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;'><br /></p>"
+                 "<p align='center' style=' margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;'><a href='https://github.com/keshavbhatt/SnapHerald'>Source Code</p>"
                  "<p align='center' style='-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;'><br /></p>";
 
     QGraphicsOpacityEffect *eff = new QGraphicsOpacityEffect(this);
