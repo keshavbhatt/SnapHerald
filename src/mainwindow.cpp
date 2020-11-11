@@ -91,12 +91,14 @@ void MainWindow::init()
         }
         rep->deleteLater();
     });
+
     //init _autoRefreshTimer
     _autoRefreshTimer = new QTimer(this);
-    _autoRefreshTimer->setInterval(settings.value("autoRefreshInterval").toInt()-1 * 60 * 1000);
+    _autoRefreshTimer->setInterval((settings.value("autoRefreshInterval").toInt()-1) * 60 * 1000);
     connect(_autoRefreshTimer,&QTimer::timeout,[=](){
        home(true);
     });
+    _autoRefreshTimer->start();
 }
 
 
@@ -402,7 +404,7 @@ void MainWindow::updateInfoButtonTooltip()
 void MainWindow::updateAutoRefreshInterval()
 {
     _autoRefreshTimer->stop();
-    _autoRefreshTimer->setInterval(settings.value("autoRefreshInterval").toInt()-1 * 60 * 1000);
+    _autoRefreshTimer->setInterval((settings.value("autoRefreshInterval").toInt()-1) * 60 * 1000);
     _autoRefreshTimer->start();
 }
 
