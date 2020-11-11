@@ -45,6 +45,7 @@ SOURCES += \
         widgets/waitingspinnerwidget.cpp
 
 HEADERS += \
+        elapsedtimer.h \
         mainwindow.h \
         notificationpopup.h \
         remotepixmaplabel.h \
