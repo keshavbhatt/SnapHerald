@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>497</width>
+    <width>483</width>
     <height>100</height>
    </rect>
   </property>
@@ -178,10 +178,38 @@ padding: 6px;</string>
        </layout>
       </item>
       <item>
-       <layout class="QVBoxLayout" name="verticalLayout_2">
+       <layout class="QHBoxLayout" name="horizontalLayout_3">
         <property name="rightMargin">
          <number>9</number>
         </property>
+        <item>
+         <widget class="QLabel" name="new_snap">
+          <property name="minimumSize">
+           <size>
+            <width>19</width>
+            <height>10</height>
+           </size>
+          </property>
+          <property name="maximumSize">
+           <size>
+            <width>19</width>
+            <height>10</height>
+           </size>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">margin-right:9px;</string>
+          </property>
+          <property name="text">
+           <string/>
+          </property>
+          <property name="pixmap">
+           <pixmap resource="icons.qrc">:/icons/others/greendot.png</pixmap>
+          </property>
+          <property name="scaledContents">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
         <item>
          <widget class="QPushButton" name="info">
           <property name="sizePolicy">
