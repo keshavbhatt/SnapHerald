@@ -58,13 +58,13 @@ public:
         if(timer == nullptr){
             timer = new QTimer(this);
             timer->setInterval(10000);
-
         }
         connect(timer,&QTimer::timeout,[=](){
            onClosed();
         });
         timer->start();
         this->adjustSize();
+        qApp->processEvents();
         int x = QApplication::desktop()->geometry().width()-(this->sizeHint().width()+10);
         int y = 40;
 
