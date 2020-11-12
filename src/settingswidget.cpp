@@ -9,7 +9,7 @@ SettingsWidget::SettingsWidget(QWidget *parent) :
 
     //minmum duration of auto refresh timer
 #ifdef QT_DEBUG
-    ui->autoRefreshInterval->setMinimum(2);
+    ui->autoRefreshInterval->setMinimum(1);
 #else
     ui->autoRefreshInterval->setMinimum(10);
 #endif
