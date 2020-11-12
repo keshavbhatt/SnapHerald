@@ -13,16 +13,7 @@ MainWindow::MainWindow(QWidget *parent) :
     //theme settings mapped to values of indexes of themeCombo widget in SettingsWidget class
     int theme = settings.value("themeCombo",1).toInt();
     setStyle(":/qbreeze/"+QString(theme == 1 ? "dark" : "light") +".qss");
-    if(settings.value("geometry").isValid()){
-        restoreGeometry(settings.value("geometry").toByteArray());
-        if(settings.value("windowState").isValid()){
-            restoreState(settings.value("windowState").toByteArray());
-        }else{
-            QScreen* pScreen = QApplication::primaryScreen();// (this->mapToGlobal({this->width()/2,0}));
-            QRect availableScreenSize = pScreen->availableGeometry();
-            this->move(availableScreenSize.center()-this->rect().center());
-        }
-    }
+
 
     _loader = new WaitingSpinnerWidget(ui->results,true,true);
     _loader->setRoundness(70.0);
@@ -52,6 +43,20 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->mainToolBar->addAction(QIcon(":/icons/information-line.png"),tr("About"),this,SLOT(aboutApp()));
     show_SysTrayIcon();
     init();
+
+
+    if(settings.value("geometry").isValid()){
+        restoreGeometry(settings.value("geometry").toByteArray());
+    }else{
+        this->resize(ui->mainToolBar->sizeHint().width(),500);
+    }
+    if(settings.value("windowState").isValid()){
+        restoreState(settings.value("windowState").toByteArray());
+    }else{
+        QScreen* pScreen = QApplication::primaryScreen();
+        QRect availableScreenSize = pScreen->availableGeometry();
+        this->move(availableScreenSize.center()-this->rect().center());
+    }
 }
 
 void MainWindow::init_searchWidget()
@@ -449,7 +454,7 @@ void MainWindow::searchApps(const QString query)
 
 void MainWindow::rateApp()
 {
-    QDesktopServices::openUrl(QUrl("snap://snap-herald"));
+    QDesktopServices::openUrl(QUrl("snap://notifier-for-snapcraft"));
 }
 
 void MainWindow::aboutApp()
@@ -535,14 +540,14 @@ void MainWindow::setStyle(QString fname)
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
+    settings.setValue("geometry",saveGeometry());
+    settings.setValue("windowState", saveState());
     if(QSystemTrayIcon::isSystemTrayAvailable() && settings.value("closeButtonActionCombo",0).toInt() == 0){
         this->hide();
         event->ignore();
         notify(QApplication::applicationName(),"Application is minimized to system tray.");
         return;
     }
-    settings.setValue("geometry",saveGeometry());
-    settings.setValue("windowState", saveState());
     QWidget::closeEvent(event);
 }
 
