@@ -6,7 +6,7 @@
 SnapHerald is an open-source free application that informs you about the new snap apps  published in store.
 It keeps you up-to date with newest snaps landing in snapcraft store by sending Desktop notification on your system.
 
-~Features~
+**Features**
 
 - Notifies whenever a new snap is published in the snapcraft.io/store
 - Supports native and customized notifications
